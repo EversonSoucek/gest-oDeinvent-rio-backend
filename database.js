@@ -100,6 +100,22 @@ const db = new sqlite3.Database('./database.db', (err) => {
     }
   });
 
+  db.run(`CREATE TABLE IF NOT EXISTS transacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data DATE NOT NULL,
+    tipo TEXT NOT NULL CHECK(tipo IN ('Entrada', 'Saída')),
+    valor REAL NOT NULL CHECK(valor > 0),
+    produtoId INTEGER NOT NULL,
+    pedidoId INTEGER,
+    FOREIGN KEY (produtoId) REFERENCES products(id),
+    FOREIGN KEY (pedidoId) REFERENCES pedidos(id)
+  )`, (err) => {
+    if (err) {
+      console.error('Erro ao criar a tabela transacoes:', err.message);
+    } else {
+      console.log('Tabela transacoes verificada/criada com sucesso.');
+    }
+  });
 
 });
 

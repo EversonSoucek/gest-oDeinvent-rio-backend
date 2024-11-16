@@ -6,6 +6,7 @@ const userController = require('./controllers/userController');
 const fornecedorController = require('./controllers/fornecedorController');
 const pedidoController = require('./controllers/pedidoController');
 const itemPedidoController = require('./controllers/itemPedidoController');
+const transacaoController = require('./controllers/transacaoController');
 
 const app = express();
 app.use(express.json());
@@ -54,6 +55,11 @@ app.get('/clientes', clienteController.listClientes);
 app.put('/clientes/:id', clienteController.updateCliente);
 app.delete('/clientes/:id', clienteController.deleteCliente);
 app.post('/clientes/:id/deactivate', clienteController.deactivateCliente);
+
+app.post('/transacoes', transacaoController.createTransacao);
+app.get('/transacoes', transacaoController.listTransacoes);
+app.put('/transacoes/:id', transacaoController.updateTransacao);
+app.delete('/transacoes/:id', transacaoController.deleteTransacao);
 
 // Configurar porta e iniciar o servidor
 const PORT = 3000;
