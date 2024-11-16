@@ -52,6 +52,55 @@ const db = new sqlite3.Database('./database.db', (err) => {
       }
     });
   }
+
+  db.run(`CREATE TABLE IF NOT EXISTS pedidos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data TEXT NOT NULL,
+    clienteId INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    total REAL DEFAULT 0,
+    FOREIGN KEY (clienteId) REFERENCES clientes(id)
+  )`, (err) => {
+    if (err) {
+      console.error('Erro ao criar a tabela pedidos:', err.message);
+    } else {
+      console.log('Tabela pedidos verificada/criada com sucesso.');
+    }
+  });
+
+  db.run(`CREATE TABLE IF NOT EXISTS clientes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cpf_cnpj TEXT UNIQUE NOT NULL,
+    endereco TEXT,
+    contato TEXT,
+    ativo INTEGER DEFAULT 1
+  )`, (err) => {
+    if (err) {
+      console.error('Erro ao criar a tabela clientes:', err.message);
+    } else {
+      console.log('Tabela clientes verificada/criada com sucesso.');
+    }
+  });
+
+  // Criação da tabela itensPedido
+  db.run(`CREATE TABLE IF NOT EXISTS itensPedido (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pedidoId INTEGER NOT NULL,
+  produtoId INTEGER NOT NULL,
+  quantidade INTEGER NOT NULL CHECK(quantidade > 0),
+  precoUnitario REAL NOT NULL CHECK(precoUnitario > 0),
+  FOREIGN KEY (pedidoId) REFERENCES pedidos(id),
+  FOREIGN KEY (produtoId) REFERENCES products(id)
+)`, (err) => {
+    if (err) {
+      console.error('Erro ao criar a tabela itensPedido:', err.message);
+    } else {
+      console.log('Tabela itensPedido verificada/criada com sucesso.');
+    }
+  });
+
+
 });
 
 module.exports = db;
