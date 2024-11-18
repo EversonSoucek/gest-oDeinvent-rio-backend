@@ -1,14 +1,23 @@
-const db = require('../database');
+const db = require("../database");
 
 // Adicionar um novo cliente
-exports.addCliente = (nome, cpf_cnpj, endereco, contato, callback) => {
-  const query = `INSERT INTO clientes (nome, cpf_cnpj, endereco, contato, ativo) VALUES (?, ?, ?, ?, 1)`;
-  db.run(query, [nome, cpf_cnpj, endereco, contato], function (err) {
-    if (err) {
-      callback(err);
-    } else {
-      callback(null, { id: this.lastID });
-    }
+exports.addCliente = (
+  nome,
+  cpf_cnpj,
+  email,
+  endereco,
+  contato,
+  tipo,
+  callback
+) => {
+  const query = `
+    INSERT INTO clientes (nome, cpf_cnpj, email, endereco, contato, tipo, ativo)
+    VALUES (?, ?, ?, ?, ?, ?, 1)
+  `;
+  const params = [nome, cpf_cnpj, email, endereco, contato, tipo];
+
+  db.run(query, params, function (err) {
+    callback(err, { id: this.lastID });
   });
 };
 
@@ -31,18 +40,41 @@ exports.getClientes = (nome, cpf_cnpj, callback) => {
   });
 };
 
-// Atualizar informações de um cliente
-exports.updateCliente = (id, nome, cpf_cnpj, endereco, contato, callback) => {
+// Função para buscar cliente por ID
+exports.getClienteById = (id, callback) => {
   const query = `
-    UPDATE clientes
-    SET nome = ?, cpf_cnpj = ?, endereco = ?, contato = ?
+    SELECT id, nome, cpf_cnpj, email, contato, endereco, tipo 
+    FROM clientes 
     WHERE id = ? AND ativo = 1
   `;
-  db.run(query, [nome, cpf_cnpj, endereco, contato, id], function (err) {
-    callback(err, { changes: this.changes });
+
+  db.get(query, [id], (err, row) => {
+    callback(err, row);
   });
 };
 
+exports.updateCliente = (
+  id,
+  nome,
+  cpf_cnpj,
+  email,
+  endereco,
+  contato,
+  tipo,
+  callback
+) => {
+  const query = `
+    UPDATE clientes
+    SET nome = ?, cpf_cnpj = ?, email = ?, endereco = ?, contato = ?, tipo = ?
+    WHERE id = ? AND ativo = 1
+  `;
+
+  const params = [nome, cpf_cnpj, email, endereco, contato, tipo, id];
+
+  db.run(query, params, function (err) {
+    callback(err, { changes: this.changes });
+  });
+};
 // Desativar cliente (não excluir)
 exports.deactivateCliente = (id, callback) => {
   const query = `
