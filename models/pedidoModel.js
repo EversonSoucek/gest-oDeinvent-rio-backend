@@ -1,7 +1,9 @@
 const db = require('../database');
-
-// Adicionar um novo pedido
 exports.addPedido = (clienteId, status, items, callback) => {
+  if (!clienteId || !items || items.length === 0) {
+    return callback(new Error("Cliente e itens são obrigatórios."));
+  }
+
   const data = new Date().toISOString();
   db.run(
     `INSERT INTO pedidos (data, clienteId, status, total) VALUES (?, ?, ?, 0)`,
@@ -10,24 +12,39 @@ exports.addPedido = (clienteId, status, items, callback) => {
       if (err) {
         return callback(err);
       }
+
       const pedidoId = this.lastID;
+
+      // Verifica se os itens têm os campos necessários
       const itemInserts = items.map((item) => {
+        if (!item.produtoId || !item.quantidade || !item.precoUnitario) {
+          return Promise.reject(
+            new Error("Cada item deve ter produtoId, quantidade e precoUnitario.")
+          );
+        }
+
         return new Promise((resolve, reject) => {
           db.run(
-            `INSERT INTO itens_pedido (pedidoId, produtoId, quantidade, preco_unitario)
+            `INSERT INTO itensPedido (pedidoId, produtoId, quantidade, precoUnitario)
              VALUES (?, ?, ?, ?)`,
-            [pedidoId, item.produtoId, item.quantidade, item.preco_unitario],
+            [pedidoId, item.produtoId, item.quantidade, item.precoUnitario],
             (err) => (err ? reject(err) : resolve())
           );
         });
       });
+
+      // Executa todas as inserções dos itens
       Promise.all(itemInserts)
         .then(() => callback(null, { id: pedidoId }))
-        .catch(callback);
+        .catch((err) => {
+          // Se houver erro na inserção dos itens, remove o pedido criado
+          db.run(`DELETE FROM pedidos WHERE id = ?`, [pedidoId], () => {
+            callback(err);
+          });
+        });
     }
   );
 };
-
 // Listar pedidos com filtros
 exports.getPedidos = (filters, callback) => {
   const { dataInicio, dataFim, status } = filters;
@@ -69,8 +86,8 @@ exports.deletePedido = (id, callback) => {
 // Calcular total do pedido
 exports.calculateTotal = (pedidoId, callback) => {
   const query = `
-    SELECT SUM(quantidade * preco_unitario) AS total
-    FROM itens_pedido
+    SELECT SUM(quantidade * precoUnitario) AS total
+    FROM itensPedido
     WHERE pedidoId = ?
   `;
   db.get(query, [pedidoId], (err, row) => {

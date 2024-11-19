@@ -58,8 +58,100 @@ app.delete("/fornecedores/:id", fornecedorController.deleteFornecedor);
 
 app.post("/pedidos", pedidoController.createPedido);
 app.get("/pedidos", pedidoController.listPedidos);
-app.put("/pedidos/:id", pedidoController.updatePedido);
 app.delete("/pedidos/:id", pedidoController.deletePedido);
+app.put('/pedidos/:id', (req, res) => {
+  const { id } = req.params;
+  const { clienteId, status, items } = req.body;
+
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ error: 'Items must be a valid array' });
+  }
+
+  const total = items.reduce(
+    (sum, item) => sum + (item.quantidade || 0) * (item.precoUnitario || 0),
+    0
+  );
+
+  // Atualiza o pedido no banco
+  db.run(
+    `UPDATE pedidos SET clienteId = ?, status = ?, total = ? WHERE id = ?`,
+    [clienteId, status, total, id],
+    function (err) {
+      if (err) {
+        console.error('Error updating order:', err);
+        return res.status(500).json({ error: 'Failed to update order' });
+      }
+
+      // Remove itens antigos do pedido
+      db.run(`DELETE FROM itensPedido WHERE pedidoId = ?`, [id], (err) => {
+        if (err) {
+          console.error('Error deleting old items:', err);
+          return res.status(500).json({ error: 'Failed to delete old items' });
+        }
+
+        // Adiciona os novos itens
+        const placeholders = items
+          .map(() => '(?, ?, ?, ?)')
+          .join(', ');
+        const itemValues = items.flatMap((item) => [
+          id,
+          item.produtoId,
+          item.quantidade,
+          item.precoUnitario,
+        ]);
+
+        db.run(
+          `INSERT INTO itensPedido (pedidoId, produtoId, quantidade, precoUnitario) VALUES ${placeholders}`,
+          itemValues,
+          (err) => {
+            if (err) {
+              console.error('Error inserting new items:', err);
+              return res.status(500).json({ error: 'Failed to insert new items' });
+            }
+
+            // Retorna o pedido atualizado
+            const updatedOrder = {
+              id,
+              clienteId,
+              status,
+              items,
+              total,
+            };
+
+            res.json(updatedOrder);
+          }
+        );
+      });
+    }
+  );
+});
+
+app.get('/pedidos/count', async (req, res) => {
+  try {
+    const totalPedidosQuery = `
+      SELECT COUNT(*) AS totalPedidos, 
+             SUM(total) AS totalRevenue 
+      FROM pedidos 
+      WHERE status = 'Concluido'
+    `;
+
+    db.get(totalPedidosQuery, (err, row) => {
+      if (err) {
+        console.error('Error fetching order stats:', err);
+        res.status(500).json({ error: 'Failed to fetch order stats' });
+      } else {
+        res.json({
+          totalPedidos: row.totalPedidos,
+          totalRevenue: row.totalRevenue ?? 0, // Certifique-se de que não seja null
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching order stats:', error);
+    res.status(500).json({ error: 'Failed to fetch order stats' });
+  }
+});
+
 
 app.post("/itensPedido", itemPedidoController.addItem);
 app.get("/itensPedido/:pedidoId", itemPedidoController.listItems);
